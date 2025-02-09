@@ -1,10 +1,27 @@
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, Receipt, Users } from "lucide-react";
 import { motion } from "framer-motion";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  const { toast } = useToast();
+
+  const handleUploadReceipt = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Receipt upload functionality will be available soon.",
+    });
+  };
+
+  const handleCreateGroup = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Group creation functionality will be available soon.",
+    });
+  };
+
   return (
     <div className="page-container">
       <motion.div
@@ -39,7 +56,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="h-32 flex items-center justify-center border-2 border-dashed rounded-lg">
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleUploadReceipt}>
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Upload Receipt
               </Button>
@@ -59,7 +76,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="h-32 flex items-center justify-center">
-              <Button>
+              <Button onClick={handleCreateGroup}>
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Create New Group
               </Button>
