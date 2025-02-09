@@ -1,12 +1,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Receipt, Users } from "lucide-react";
+import { PlusCircle, Receipt, Users, LogIn, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/components/AuthProvider";
 
 const Index = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
 
   const handleUploadReceipt = () => {
     toast({
@@ -22,6 +25,13 @@ const Index = () => {
     });
   };
 
+  const handleExport = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Export functionality will be available soon.",
+    });
+  };
+
   return (
     <div className="page-container">
       <motion.div
@@ -33,9 +43,23 @@ const Index = () => {
         <h1 className="text-4xl font-bold tracking-tight mb-4">
           Split Expenses Effortlessly
         </h1>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground mb-6">
           Upload receipts, manage groups, and keep track of shared expenses with ease.
         </p>
+        {!session && (
+          <div className="flex items-center justify-center gap-4">
+            <Button variant="outline" asChild>
+              <Link to="/auth">
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign in to save your data
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export to CSV
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       <motion.div
@@ -92,7 +116,9 @@ const Index = () => {
         className="mt-12 text-center"
       >
         <p className="text-sm text-muted-foreground">
-          Start by creating a group or uploading a receipt
+          {session 
+            ? "Start by creating a group or uploading a receipt" 
+            : "No account needed - start splitting expenses right away!"}
         </p>
       </motion.div>
     </div>
