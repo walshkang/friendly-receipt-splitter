@@ -9,7 +9,173 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      group_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      receipt_item_splits: {
+        Row: {
+          created_at: string
+          id: string
+          receipt_item_id: string
+          split_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receipt_item_id: string
+          split_amount: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receipt_item_id?: string
+          split_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_item_splits_receipt_item_id_fkey"
+            columns: ["receipt_item_id"]
+            isOneToOne: false
+            referencedRelation: "receipt_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipt_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          receipt_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          receipt_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          receipt_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipts: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          group_id: string
+          id: string
+          image_url: string | null
+          paid_by: string
+          tax: number | null
+          tip: number | null
+          total_amount: number
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          group_id: string
+          id?: string
+          image_url?: string | null
+          paid_by: string
+          tax?: number | null
+          tip?: number | null
+          total_amount: number
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          group_id?: string
+          id?: string
+          image_url?: string | null
+          paid_by?: string
+          tax?: number | null
+          tip?: number | null
+          total_amount?: number
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
