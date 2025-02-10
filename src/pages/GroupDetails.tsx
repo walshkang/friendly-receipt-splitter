@@ -25,6 +25,35 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/AuthProvider";
 import { format } from "date-fns";
 
+interface Profile {
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+interface GroupMember {
+  user_id: string;
+  profiles: Profile;
+}
+
+interface ReceiptDetails {
+  id: string;
+  description: string | null;
+  total_amount: number;
+  date: string;
+  profiles: {
+    full_name: string | null;
+  };
+}
+
+interface GroupData {
+  group: {
+    id: string;
+    name: string;
+    group_members: GroupMember[];
+  };
+  receipts: ReceiptDetails[];
+}
+
 const GroupDetails = () => {
   const { groupId } = useParams();
   const { session } = useAuth();
@@ -39,7 +68,7 @@ const GroupDetails = () => {
     date: new Date().toISOString().split("T")[0],
   });
 
-  const { data: groupData, isLoading: isLoadingGroup } = useQuery({
+  const { data: groupData, isLoading: isLoadingGroup } = useQuery<GroupData>({
     queryKey: ["group", groupId],
     queryFn: async () => {
       const { data: group, error: groupError } = await supabase
