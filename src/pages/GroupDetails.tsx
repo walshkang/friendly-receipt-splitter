@@ -76,7 +76,7 @@ const GroupDetails = () => {
         .select(`
           id,
           name,
-          group_members!inner (
+          group_members (
             user_id,
             profiles:user_id (
               full_name,
@@ -105,7 +105,16 @@ const GroupDetails = () => {
 
       if (receiptsError) throw receiptsError;
 
-      return { group, receipts };
+      return {
+        group: {
+          ...group,
+          group_members: group.group_members.map((member: any) => ({
+            user_id: member.user_id,
+            profiles: member.profiles[0] || { full_name: null, avatar_url: null }
+          }))
+        },
+        receipts
+      };
     },
     enabled: !!groupId && !!session?.user?.id,
   });
