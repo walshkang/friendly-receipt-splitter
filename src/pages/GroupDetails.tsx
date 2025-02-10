@@ -199,7 +199,7 @@ const GroupDetails = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {groupData?.group.group_members.map((member: any) => (
+              {groupData?.group.group_members.map((member) => (
                 <div key={member.user_id} className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                     {member.profiles?.full_name?.[0] || "?"}
@@ -306,7 +306,7 @@ const GroupDetails = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {groupData?.receipts.map((receipt) => (
+                {groupData?.receipts?.map((receipt) => (
                   <TableRow
                     key={receipt.id}
                     className="cursor-pointer hover:bg-muted/50"
