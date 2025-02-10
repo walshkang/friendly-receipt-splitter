@@ -13,26 +13,10 @@ const Index = () => {
   const navigate = useNavigate();
 
   const handleUploadReceipt = () => {
-    if (!session) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to upload receipts.",
-      });
-      navigate("/auth");
-      return;
-    }
     navigate("/groups");
   };
 
   const handleCreateGroup = () => {
-    if (!session) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to create groups.",
-      });
-      navigate("/auth");
-      return;
-    }
     navigate("/groups");
   };
 

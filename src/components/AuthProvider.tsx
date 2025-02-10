@@ -16,12 +16,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Add protected routes here
-const PROTECTED_ROUTES = [
-  "/groups",
-  "/groups/:id",
-  "/receipts/:id",
-];
+// No protected routes - the app is fully accessible without authentication
+const PROTECTED_ROUTES: string[] = [];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
