@@ -18,9 +18,9 @@ export const useAuth = () => useContext(AuthContext);
 
 // Add protected routes here
 const PROTECTED_ROUTES = [
-  // Add routes that require authentication here
-  // "/profile",
-  // "/settings",
+  "/groups",
+  "/groups/:id",
+  "/receipts/:id",
 ];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -41,8 +41,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      // Only redirect to auth if the current route is protected and there's no session
-      if (!session && PROTECTED_ROUTES.includes(location.pathname)) {
+      // Check if the current route is protected
+      const isProtected = PROTECTED_ROUTES.some(route => {
+        // Convert route pattern to regex
+        const pattern = route.replace(/:[^/]+/g, '[^/]+');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(location.pathname);
+      });
+      
+      if (!session && isProtected) {
         navigate("/auth");
       }
     });

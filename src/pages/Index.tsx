@@ -4,25 +4,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PlusCircle, Receipt, Users, LogIn, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 
 const Index = () => {
   const { toast } = useToast();
   const { session } = useAuth();
+  const navigate = useNavigate();
 
   const handleUploadReceipt = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Receipt upload functionality will be available soon.",
-    });
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to upload receipts.",
+      });
+      navigate("/auth");
+      return;
+    }
+    navigate("/groups");
   };
 
   const handleCreateGroup = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Group creation functionality will be available soon.",
-    });
+    if (!session) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to create groups.",
+      });
+      navigate("/auth");
+      return;
+    }
+    navigate("/groups");
   };
 
   const handleExport = () => {

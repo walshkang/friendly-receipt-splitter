@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Groups from "./pages/Groups";
+import GroupDetails from "./pages/GroupDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,6 +17,8 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/groups" element={<Groups />} />
+      <Route path="/groups/:groupId" element={<GroupDetails />} />
       <Route path="/" element={<Index />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
