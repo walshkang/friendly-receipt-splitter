@@ -113,7 +113,10 @@ const GroupDetails = () => {
             profiles: member.profiles[0] || { full_name: null, avatar_url: null }
           }))
         },
-        receipts
+        receipts: receipts.map((receipt: any) => ({
+          ...receipt,
+          profiles: receipt.profiles[0] || { full_name: null }
+        }))
       };
     },
     enabled: !!groupId && !!session?.user?.id,
