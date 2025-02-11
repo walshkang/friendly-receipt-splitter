@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +23,7 @@ import { Receipt, Users, ArrowLeft, PlusCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/AuthProvider";
 import { format } from "date-fns";
+import { ReceiptUpload } from "@/components/ReceiptUpload";
 
 interface Profile {
   full_name: string | null;
@@ -72,7 +72,6 @@ const GroupDetails = () => {
     queryKey: ["group", groupId],
     queryFn: async () => {
       if (session?.user?.id) {
-        // If user is authenticated, fetch from Supabase
         const { data: group, error: groupError } = await supabase
           .from("groups")
           .select(`
@@ -121,18 +120,15 @@ const GroupDetails = () => {
           }))
         };
       } else {
-        // For non-authenticated users, get from localStorage
         const localGroups = localStorage.getItem("local_groups");
         const groups = localGroups ? JSON.parse(localGroups) : [];
         const group = groups.find((g: any) => g.id === groupId);
         
         if (!group) throw new Error("Group not found");
         
-        // Get local receipts
         const localReceipts = localStorage.getItem(`receipts_${groupId}`);
         const receipts = localReceipts ? JSON.parse(localReceipts) : [];
         
-        // Get local members
         const localMembers = localStorage.getItem(`members_${groupId}`);
         const members = localMembers ? JSON.parse(localMembers) : [];
         
@@ -159,7 +155,6 @@ const GroupDetails = () => {
   const addMemberMutation = useMutation({
     mutationFn: async (memberName: string) => {
       if (session?.user?.id) {
-        // If authenticated, use Supabase
         const { data: userData, error: userError } = await supabase
           .from("profiles")
           .select("id")
@@ -176,7 +171,6 @@ const GroupDetails = () => {
         
         return userData;
       } else {
-        // For non-authenticated users, store in localStorage
         const newMember = {
           id: crypto.randomUUID(),
           name: memberName
@@ -210,7 +204,6 @@ const GroupDetails = () => {
   const addReceiptMutation = useMutation({
     mutationFn: async (receiptData: typeof receiptDetails) => {
       if (session?.user?.id) {
-        // If authenticated, use Supabase
         const { data, error } = await supabase
           .from("receipts")
           .insert([{
@@ -227,7 +220,6 @@ const GroupDetails = () => {
         if (error) throw error;
         return data;
       } else {
-        // For non-authenticated users, store in localStorage
         const newReceipt = {
           id: crypto.randomUUID(),
           description: receiptData.description,
@@ -265,6 +257,24 @@ const GroupDetails = () => {
       });
     },
   });
+
+  const handleReceiptUploadSuccess = (receiptData: {
+    total_amount: number;
+    date: string;
+    description: string;
+    image_url?: string;
+    items: Array<{
+      description: string;
+      amount: number;
+    }>;
+  }) => {
+    addReceiptMutation.mutate({
+      description: receiptData.description,
+      totalAmount: receiptData.total_amount.toString(),
+      date: receiptData.date,
+      image_url: receiptData.image_url,
+    });
+  };
 
   if (isLoadingGroup) {
     return <div>Loading group details...</div>;
@@ -332,10 +342,10 @@ const GroupDetails = () => {
               onClick={() => setIsAddingReceipt(!isAddingReceipt)}
             >
               <PlusCircle className="w-4 h-4 mr-2" />
-              Add Receipt
+              Add Receipt Manually
             </Button>
 
-            {isAddingReceipt && (
+            {isAddingReceipt ? (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -386,6 +396,13 @@ const GroupDetails = () => {
                   Add Receipt
                 </Button>
               </form>
+            ) : (
+              <div className="mb-6">
+                <ReceiptUpload
+                  groupId={groupId!}
+                  onUploadSuccess={handleReceiptUploadSuccess}
+                />
+              </div>
             )}
 
             <Table>
