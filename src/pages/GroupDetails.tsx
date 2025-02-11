@@ -40,6 +40,7 @@ interface ReceiptDetails {
   description: string | null;
   total_amount: number;
   date: string;
+  image_url?: string;
   profiles: {
     full_name: string | null;
   };
@@ -66,6 +67,7 @@ const GroupDetails = () => {
     description: "",
     totalAmount: "",
     date: new Date().toISOString().split("T")[0],
+    image_url: "",
   });
 
   const { data: groupData, isLoading: isLoadingGroup } = useQuery<GroupData>({
@@ -97,6 +99,7 @@ const GroupDetails = () => {
             description,
             total_amount,
             date,
+            image_url,
             profiles:uploaded_by (
               full_name
             )
@@ -211,6 +214,7 @@ const GroupDetails = () => {
             description: receiptData.description,
             total_amount: parseFloat(receiptData.totalAmount),
             date: receiptData.date,
+            image_url: receiptData.image_url,
             uploaded_by: session.user.id,
             paid_by: session.user.id,
           }])
@@ -225,6 +229,7 @@ const GroupDetails = () => {
           description: receiptData.description,
           total_amount: parseFloat(receiptData.totalAmount),
           date: receiptData.date,
+          image_url: receiptData.image_url,
           added_by: "Guest User"
         };
         
@@ -243,6 +248,7 @@ const GroupDetails = () => {
         description: "",
         totalAmount: "",
         date: new Date().toISOString().split("T")[0],
+        image_url: "",
       });
       toast({
         title: "Success",
@@ -272,7 +278,7 @@ const GroupDetails = () => {
       description: receiptData.description,
       totalAmount: receiptData.total_amount.toString(),
       date: receiptData.date,
-      image_url: receiptData.image_url,
+      image_url: receiptData.image_url || "",
     });
   };
 
