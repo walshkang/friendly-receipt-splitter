@@ -71,74 +71,124 @@ const GroupDetails = () => {
   const { data: groupData, isLoading: isLoadingGroup } = useQuery<GroupData>({
     queryKey: ["group", groupId],
     queryFn: async () => {
-      const { data: group, error: groupError } = await supabase
-        .from("groups")
-        .select(`
-          id,
-          name,
-          group_members (
-            user_id,
-            profiles:user_id (
-              full_name,
-              avatar_url
+      if (session?.user?.id) {
+        // If user is authenticated, fetch from Supabase
+        const { data: group, error: groupError } = await supabase
+          .from("groups")
+          .select(`
+            id,
+            name,
+            group_members (
+              user_id,
+              profiles:user_id (
+                full_name,
+                avatar_url
+              )
             )
-          )
-        `)
-        .eq("id", groupId)
-        .single();
+          `)
+          .eq("id", groupId)
+          .single();
 
-      if (groupError) throw groupError;
+        if (groupError) throw groupError;
 
-      const { data: receipts, error: receiptsError } = await supabase
-        .from("receipts")
-        .select(`
-          id,
-          description,
-          total_amount,
-          date,
-          profiles:uploaded_by (
-            full_name
-          )
-        `)
-        .eq("group_id", groupId)
-        .order("date", { ascending: false });
+        const { data: receipts, error: receiptsError } = await supabase
+          .from("receipts")
+          .select(`
+            id,
+            description,
+            total_amount,
+            date,
+            profiles:uploaded_by (
+              full_name
+            )
+          `)
+          .eq("group_id", groupId)
+          .order("date", { ascending: false });
 
-      if (receiptsError) throw receiptsError;
+        if (receiptsError) throw receiptsError;
 
-      return {
-        group: {
-          ...group,
-          group_members: group.group_members.map((member: any) => ({
-            user_id: member.user_id,
-            profiles: member.profiles[0] || { full_name: null, avatar_url: null }
+        return {
+          group: {
+            ...group,
+            group_members: group.group_members.map((member: any) => ({
+              user_id: member.user_id,
+              profiles: member.profiles[0] || { full_name: null, avatar_url: null }
+            }))
+          },
+          receipts: receipts.map((receipt: any) => ({
+            ...receipt,
+            profiles: receipt.profiles[0] || { full_name: null }
           }))
-        },
-        receipts: receipts.map((receipt: any) => ({
-          ...receipt,
-          profiles: receipt.profiles[0] || { full_name: null }
-        }))
-      };
+        };
+      } else {
+        // For non-authenticated users, get from localStorage
+        const localGroups = localStorage.getItem("local_groups");
+        const groups = localGroups ? JSON.parse(localGroups) : [];
+        const group = groups.find((g: any) => g.id === groupId);
+        
+        if (!group) throw new Error("Group not found");
+        
+        // Get local receipts
+        const localReceipts = localStorage.getItem(`receipts_${groupId}`);
+        const receipts = localReceipts ? JSON.parse(localReceipts) : [];
+        
+        // Get local members
+        const localMembers = localStorage.getItem(`members_${groupId}`);
+        const members = localMembers ? JSON.parse(localMembers) : [];
+        
+        return {
+          group: {
+            ...group,
+            group_members: members.map((member: any) => ({
+              user_id: member.id,
+              profiles: {
+                full_name: member.name,
+                avatar_url: null
+              }
+            }))
+          },
+          receipts: receipts.map((receipt: any) => ({
+            ...receipt,
+            profiles: { full_name: receipt.added_by }
+          }))
+        };
+      }
     },
-    enabled: !!groupId && !!session?.user?.id,
   });
 
   const addMemberMutation = useMutation({
-    mutationFn: async (email: string) => {
-      // First get the user ID from the email
-      const { data: userData, error: userError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", email)
-        .single();
+    mutationFn: async (memberName: string) => {
+      if (session?.user?.id) {
+        // If authenticated, use Supabase
+        const { data: userData, error: userError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", memberName)
+          .single();
 
-      if (userError) throw new Error("User not found");
+        if (userError) throw new Error("User not found");
 
-      // Then add them to the group
-      const { error: memberError } = await supabase
-        .from("group_members")
-        .insert([{ group_id: groupId, user_id: userData.id }]);
+        const { error: memberError } = await supabase
+          .from("group_members")
+          .insert([{ group_id: groupId, user_id: userData.id }]);
 
-      if (memberError) throw memberError;
+        if (memberError) throw memberError;
+        
+        return userData;
+      } else {
+        // For non-authenticated users, store in localStorage
+        const newMember = {
+          id: crypto.randomUUID(),
+          name: memberName
+        };
+        
+        const localMembers = localStorage.getItem(`members_${groupId}`);
+        const members = localMembers ? JSON.parse(localMembers) : [];
+        members.push(newMember);
+        localStorage.setItem(`members_${groupId}`, JSON.stringify(members));
+        
+        return newMember;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group", groupId] });
@@ -159,21 +209,40 @@ const GroupDetails = () => {
 
   const addReceiptMutation = useMutation({
     mutationFn: async (receiptData: typeof receiptDetails) => {
-      const { data, error } = await supabase
-        .from("receipts")
-        .insert([{
-          group_id: groupId,
+      if (session?.user?.id) {
+        // If authenticated, use Supabase
+        const { data, error } = await supabase
+          .from("receipts")
+          .insert([{
+            group_id: groupId,
+            description: receiptData.description,
+            total_amount: parseFloat(receiptData.totalAmount),
+            date: receiptData.date,
+            uploaded_by: session.user.id,
+            paid_by: session.user.id,
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } else {
+        // For non-authenticated users, store in localStorage
+        const newReceipt = {
+          id: crypto.randomUUID(),
           description: receiptData.description,
           total_amount: parseFloat(receiptData.totalAmount),
           date: receiptData.date,
-          uploaded_by: session?.user?.id,
-          paid_by: session?.user?.id,
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+          added_by: "Guest User"
+        };
+        
+        const localReceipts = localStorage.getItem(`receipts_${groupId}`);
+        const receipts = localReceipts ? JSON.parse(localReceipts) : [];
+        receipts.push(newReceipt);
+        localStorage.setItem(`receipts_${groupId}`, JSON.stringify(receipts));
+        
+        return newReceipt;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group", groupId] });
@@ -196,24 +265,6 @@ const GroupDetails = () => {
       });
     },
   });
-
-  if (!session) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>
-              Please sign in to view group details
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/auth")}>Sign In</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (isLoadingGroup) {
     return <div>Loading group details...</div>;
@@ -256,7 +307,7 @@ const GroupDetails = () => {
                 className="flex gap-2"
               >
                 <Input
-                  placeholder="Enter user ID"
+                  placeholder={session ? "Enter user ID" : "Enter member name"}
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                 />
