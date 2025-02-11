@@ -26,48 +26,71 @@ const Groups = () => {
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("groups")
-        .select(`
-          id,
-          name,
-          group_members!inner (user_id)
-        `)
-        .eq("group_members.user_id", session?.user?.id);
+      if (session?.user?.id) {
+        // If user is authenticated, fetch their groups
+        const { data, error } = await supabase
+          .from("groups")
+          .select(`
+            id,
+            name,
+            group_members!inner (user_id)
+          `)
+          .eq("group_members.user_id", session.user.id);
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } else {
+        // For non-authenticated users, get groups from local storage
+        const localGroups = localStorage.getItem("local_groups");
+        return localGroups ? JSON.parse(localGroups) : [];
+      }
     },
-    enabled: !!session?.user?.id,
   });
 
   const createGroupMutation = useMutation({
     mutationFn: async (name: string) => {
-      // First create the group
-      const { data: group, error: groupError } = await supabase
-        .from("groups")
-        .insert([{ name }])
-        .select()
-        .single();
+      if (session?.user?.id) {
+        // If user is authenticated, create group in Supabase
+        const { data: group, error: groupError } = await supabase
+          .from("groups")
+          .insert([{ name }])
+          .select()
+          .single();
 
-      if (groupError) throw groupError;
+        if (groupError) throw groupError;
 
-      // Then add the creator as a member
-      const { error: memberError } = await supabase
-        .from("group_members")
-        .insert([{ group_id: group.id, user_id: session?.user?.id }]);
+        const { error: memberError } = await supabase
+          .from("group_members")
+          .insert([{ group_id: group.id, user_id: session.user.id }]);
 
-      if (memberError) throw memberError;
+        if (memberError) throw memberError;
 
-      return group;
+        return group;
+      } else {
+        // For non-authenticated users, store group in local storage
+        const newGroup = {
+          id: crypto.randomUUID(),
+          name,
+          created_at: new Date().toISOString()
+        };
+        
+        const existingGroups = localStorage.getItem("local_groups");
+        const groups = existingGroups ? JSON.parse(existingGroups) : [];
+        groups.push(newGroup);
+        localStorage.setItem("local_groups", JSON.stringify(groups));
+        
+        return newGroup;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (newGroup) => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       setNewGroupName("");
       toast({
         title: "Success",
         description: "Group created successfully",
       });
+      // Navigate to the new group immediately
+      navigate(`/groups/${newGroup.id}`);
     },
     onError: (error) => {
       toast({
@@ -91,24 +114,6 @@ const Groups = () => {
     createGroupMutation.mutate(newGroupName);
   };
 
-  if (!session) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>
-              Please sign in to manage your groups
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/auth")}>Sign In</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -131,8 +136,10 @@ const Groups = () => {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {groups?.map((group) => (
-            <Card key={group.id} className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => navigate(`/groups/${group.id}`)}>
+            <Card 
+              key={group.id} 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => navigate(`/groups/${group.id}`)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
@@ -144,6 +151,16 @@ const Groups = () => {
               </CardHeader>
             </Card>
           ))}
+          {(!groups || groups.length === 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>No Groups Yet</CardTitle>
+                <CardDescription>
+                  Create your first group to get started!
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </div>
       )}
     </div>
