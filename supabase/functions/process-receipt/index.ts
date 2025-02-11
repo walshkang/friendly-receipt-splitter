@@ -22,7 +22,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -63,6 +63,10 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log('OpenAI response:', data);
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error(`Invalid response from OpenAI: ${JSON.stringify(data)}`);
+    }
 
     // Parse the response content as JSON
     const receiptData = JSON.parse(data.choices[0].message.content);
