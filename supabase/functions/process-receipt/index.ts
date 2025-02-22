@@ -1,6 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createOCREngine } from "https://deno.land/x/ocrs@0.0.2/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,61 +16,68 @@ serve(async (req) => {
   try {
     const { image } = await req.json();
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a receipt OCR system. Extract the following information from the receipt image:
-              - Total amount
-              - Date
-              - Vendor name/description
-              - Line items (with individual prices)
-              
-              Return the data in this exact JSON format:
-              {
-                "total_amount": number,
-                "date": "YYYY-MM-DD",
-                "description": "string",
-                "items": [
-                  {
-                    "description": "string",
-                    "amount": number
-                  }
-                ]
-              }`
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                image_url: {
-                  url: `data:image/jpeg;base64,${image}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 1000,
-      }),
-    });
-
-    const data = await response.json();
-    console.log('OpenAI response:', data);
-
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error(`Invalid response from OpenAI: ${JSON.stringify(data)}`);
+    // Convert base64 to Uint8Array
+    const binaryString = atob(image);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Parse the response content as JSON
-    const receiptData = JSON.parse(data.choices[0].message.content);
+    // Initialize OCR engine
+    const engine = await createOCREngine();
+    
+    // Process the image
+    const result = await engine.recognize(bytes);
+    console.log('OCR result:', result);
+
+    // Extract receipt information from OCR text
+    const lines = result.text.split('\n');
+    let totalAmount = 0;
+    let date = '';
+    let description = '';
+    const items = [];
+
+    // Simple parsing logic - can be improved based on receipt format
+    for (const line of lines) {
+      // Look for date in common formats (MM/DD/YYYY or YYYY-MM-DD)
+      if (!date && (line.match(/\d{2}\/\d{2}\/\d{4}/) || line.match(/\d{4}-\d{2}-\d{2}/))) {
+        date = line.trim();
+        continue;
+      }
+
+      // Look for price patterns ($XX.XX)
+      const priceMatch = line.match(/\$?\d+\.\d{2}/);
+      if (priceMatch) {
+        const amount = parseFloat(priceMatch[0].replace('$', ''));
+        // If this is one of the largest numbers, it might be the total
+        if (amount > totalAmount) {
+          totalAmount = amount;
+        }
+        // Add as line item if it's not the total
+        items.push({
+          description: line.replace(priceMatch[0], '').trim(),
+          amount
+        });
+      }
+
+      // First non-date, non-amount line might be the vendor/description
+      if (!description && !line.includes('$') && !line.match(/\d{2}\/\d{2}\/\d{4}/)) {
+        description = line.trim();
+      }
+    }
+
+    // If no date found, use current date
+    if (!date) {
+      date = new Date().toISOString().split('T')[0];
+    }
+
+    // Format the response
+    const receiptData = {
+      total_amount: totalAmount,
+      date,
+      description: description || 'Unknown Vendor',
+      items: items.filter(item => item.amount < totalAmount) // Filter out the total from items
+    };
 
     return new Response(JSON.stringify(receiptData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
