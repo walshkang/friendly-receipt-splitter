@@ -1,7 +1,6 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createOCREngine } from "https://deno.land/x/ocrs@0.0.2/mod.ts";
+import { createWorker } from 'https://esm.sh/tesseract.js@4.1.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,46 +22,33 @@ serve(async (req) => {
       throw new Error('No image data provided');
     }
 
-    console.log('Converting base64 to binary...');
-    // Convert base64 to Uint8Array
-    try {
-      const binaryString = atob(image);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      console.log('Binary conversion successful, length:', bytes.length);
-    } catch (error) {
-      console.error('Base64 conversion error:', error);
-      throw new Error('Invalid base64 image data');
-    }
+    console.log('Initializing Tesseract worker...');
+    const worker = await createWorker();
+    console.log('Tesseract worker initialized');
 
-    console.log('Initializing OCR engine...');
-    // Initialize OCR engine
-    const engine = await createOCREngine();
-    console.log('OCR engine initialized');
-    
-    // Process the image
     console.log('Starting image recognition...');
-    const result = await engine.recognize(bytes);
-    console.log('OCR result:', result);
+    const result = await worker.recognize(image);
+    console.log('OCR completed, text length:', result.data.text.length);
+    await worker.terminate();
 
-    if (!result || !result.text) {
-      console.error('OCR processing returned no results');
+    if (!result.data.text) {
+      console.error('OCR processing returned no text');
       throw new Error('OCR processing failed to extract text');
     }
 
     // Extract receipt information from OCR text
-    const lines = result.text.split('\n');
+    const lines = result.data.text.split('\n');
     let totalAmount = 0;
     let date = '';
     let description = '';
     const items = [];
 
-    console.log('Parsing OCR text:', lines);
+    console.log('Parsing OCR text, number of lines:', lines.length);
 
     // Simple parsing logic - can be improved based on receipt format
     for (const line of lines) {
+      console.log('Processing line:', line);
+      
       // Look for date in common formats (MM/DD/YYYY or YYYY-MM-DD)
       if (!date && (line.match(/\d{2}\/\d{2}\/\d{4}/) || line.match(/\d{4}-\d{2}-\d{2}/))) {
         date = line.trim();
