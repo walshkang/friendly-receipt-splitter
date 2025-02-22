@@ -24,7 +24,7 @@ import { format } from "date-fns";
 
 interface ReceiptDetails {
   id: string;
-  description: string;
+  description: string | null;
   total_amount: number;
   date: string;
   image_url?: string;
@@ -46,7 +46,7 @@ const ReceiptDetails = () => {
     queryFn: async () => {
       if (!receiptId) throw new Error("Receipt ID is required");
 
-      const { data: receipt, error } = await supabase
+      const { data, error } = await supabase
         .from("receipts")
         .select(`
           id,
@@ -63,17 +63,19 @@ const ReceiptDetails = () => {
           )
         `)
         .eq("id", receiptId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("Receipt not found");
 
       return {
-        ...receipt,
-        profiles: receipt.profiles?.[0] || { full_name: null },
-        items: receipt.items || []
+        ...data,
+        profiles: data.profiles?.[0] || { full_name: null },
+        items: data.items || []
       };
     },
-    enabled: !!receiptId
+    enabled: !!receiptId,
+    retry: false
   });
 
   if (isLoading) {
