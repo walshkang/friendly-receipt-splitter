@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Groups from "./pages/Groups";
 import GroupDetails from "./pages/GroupDetails";
+import ReceiptDetails from "./pages/ReceiptDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const AppRoutes = () => {
       <Route path="/auth" element={<Auth />} />
       <Route path="/groups" element={<Groups />} />
       <Route path="/groups/:groupId" element={<GroupDetails />} />
+      <Route path="/receipts/:receiptId" element={<ReceiptDetails />} />
       <Route path="/" element={<Index />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
