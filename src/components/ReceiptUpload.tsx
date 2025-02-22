@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { EditReceiptForm } from "./EditReceiptForm";
 
 interface ReceiptUploadProps {
   groupId: string;
@@ -19,16 +20,15 @@ interface ReceiptUploadProps {
     total_amount: number;
     date: string;
     description: string;
-    items: Array<{
-      description: string;
-      amount: number;
-    }>;
+    image_url?: string;
   }) => void;
 }
 
 export function ReceiptUpload({ groupId, onUploadSuccess }: ReceiptUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState<any>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,17 +54,7 @@ export function ReceiptUpload({ groupId, onUploadSuccess }: ReceiptUploadProps) 
 
     setIsProcessing(true);
     try {
-      // Convert file to base64
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = reader.result as string;
-          resolve(base64String.split(",")[1]);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      // Upload to Supabase Storage if authenticated
+      // Upload to Supabase Storage
       let fileUrl = "";
       if (window.sessionStorage.getItem("supabase.auth.token")) {
         const fileExt = file.name.split(".").pop();
@@ -80,37 +70,78 @@ export function ReceiptUpload({ groupId, onUploadSuccess }: ReceiptUploadProps) 
           .getPublicUrl(fileName);
           
         fileUrl = publicUrl;
+        setImageUrl(fileUrl);
       }
 
-      // Process with OpenAI
+      // Convert file to base64 for OCR
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          resolve(base64String.split(",")[1]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Process with OCR
       const response = await supabase.functions.invoke("process-receipt", {
         body: { image: base64 },
       });
 
       if (response.error) throw response.error;
 
-      const data = response.data;
-      onUploadSuccess({
-        ...data,
+      // Show edit form with OCR results
+      setOcrResult({
+        ...response.data,
         image_url: fileUrl,
       });
 
-      toast({
-        title: "Success",
-        description: "Receipt processed successfully",
-      });
     } catch (error) {
       console.error("Error processing receipt:", error);
+      // If OCR fails, show empty edit form
+      setOcrResult({
+        description: "",
+        total_amount: 0,
+        date: new Date().toISOString().split("T")[0],
+        items: [],
+      });
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to process receipt. Please try again.",
+        title: "OCR Processing Failed",
+        description: "You can still enter the receipt details manually.",
       });
     } finally {
       setIsProcessing(false);
-      setFile(null);
     }
   };
+
+  const handleSave = (receiptData: {
+    description: string;
+    total_amount: number;
+    date: string;
+    image_url?: string;
+  }) => {
+    onUploadSuccess(receiptData);
+    setFile(null);
+    setOcrResult(null);
+    setImageUrl("");
+  };
+
+  const handleCancel = () => {
+    setFile(null);
+    setOcrResult(null);
+    setImageUrl("");
+  };
+
+  if (ocrResult) {
+    return (
+      <EditReceiptForm
+        initialData={ocrResult}
+        imageUrl={imageUrl}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
+    );
+  }
 
   return (
     <Card className="w-full">
